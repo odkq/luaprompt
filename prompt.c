@@ -51,43 +51,7 @@
 #define lua_rawlen lua_objlen
 #endif
 
-#ifdef HAVE_LIBREADLINE
-#include <readline/readline.h>
-#else
-
-/* This is a simple readline-like function in case readline is not
- * available. */
-
-#define MAXINPUT 1024
-
-static char *readline(char *prompt)
-{
-    char *line = NULL;
-    int k;
-
-    line = malloc (MAXINPUT);
-
-    fputs(prompt, stdout);
-    fflush(stdout);
-
-    if (!fgets(line, MAXINPUT, stdin)) {
-        return NULL;
-    }
-
-    k = strlen (line);
-
-    if (line[k - 1] == '\n') {
-        line[k - 1] = '\0';
-    }
-
-    return line;
-}
-
-#endif /* HAVE_LIBREADLINE */
-
-#ifdef HAVE_READLINE_HISTORY
-#include <readline/history.h>
-#endif /* HAVE_READLINE_HISTORY */
+#include <linenoise.h>
 
 #if LUA_VERSION_NUM == 501
 #define EOF_MARKER "'<eof>'"
@@ -127,7 +91,7 @@ void handle_interrupt(int signo) {
 }
 
 #ifdef HAVE_LIBREADLINE
-
+/*
 static void display_matches (char **matches, int num_matches, int max_length)
 {
     print_output ("%s", COLOR(7));
@@ -135,7 +99,7 @@ static void display_matches (char **matches, int num_matches, int max_length)
     print_output ("%s", COLOR(0));
     rl_on_new_line ();
 }
-
+*/
 #ifdef COMPLETE_KEYWORDS
 static char *keyword_completions (const char *text, int state)
 {
@@ -337,6 +301,7 @@ static char *table_key_completions (const char *text, int state)
 #ifndef ALWAYS_APPEND_SUFFIXES
                 if (l == m) {
 #endif
+                    /*
                     if (type == LUA_TFUNCTION) {
                         rl_completion_append_character = '('; suppress = 0;
                     } else if (type == LUA_TTABLE) {
@@ -346,6 +311,7 @@ static char *table_key_completions (const char *text, int state)
                             rl_completion_append_character  = '['; suppress = 0;
                         }
                     }
+                    */
 #ifndef ALWAYS_APPEND_SUFFIXES
                 };
 #endif
@@ -370,9 +336,11 @@ static char *table_key_completions (const char *text, int state)
                 /* Suppress the newline when completing a table
                  * or other potentially complex value. */
 
+                /* pmm
                 if (suppress) {
                     rl_completion_suppress_append = 1;
                 }
+                */
 
                 return match;
             } else {
@@ -496,7 +464,7 @@ static char *module_completions (const char *text, int state)
                         print_output ("\nLoaded module '%s'.\n", text);
 #endif
 
-                        rl_on_new_line ();
+                        /* pmm rl_on_new_line (); */
 
                         lua_settop(M, h - 1);
                         return NULL;
@@ -535,7 +503,7 @@ static char *module_completions (const char *text, int state)
                     }
 #else
                     print_output ("\nGlobalized module '%s'.\n", text);
-                    rl_on_new_line ();
+                    /*pmm rl_on_new_line (); */
 #endif
                 }
 
@@ -669,7 +637,7 @@ static char *module_completions (const char *text, int state)
     if (lua_next(M, -2)) {
         match = strdup(lua_tostring(M, -1));
 
-        rl_completion_suppress_append = !(match[0] == '"' || match[0] == '\'');
+        /*pmm rl_completion_suppress_append = !(match[0] == '"' || match[0] == '\''); */
 
         /* Pop the match. */
 
@@ -797,7 +765,7 @@ static void finish ()
     /* Save the command history on exit. */
 
     if (logfile) {
-        write_history (logfile);
+        linenoiseHistorySave(logfile);
     }
 #endif
 }
@@ -1416,7 +1384,7 @@ static int describe_stack (int count, int key)
 
     print_output ("%s\n", COLOR(0));
 
-    rl_on_new_line ();
+    /*pmm rl_on_new_line (); */
 
     return 0;
 }
@@ -1545,19 +1513,19 @@ void luap_enter(lua_State *L)
 
     if (!initialized) {
 #ifdef HAVE_LIBREADLINE
-        rl_readline_name = "luaprompt";
-        rl_basic_word_break_characters = " \t\n`@$><=;|&{(";
-        rl_completion_entry_function = generator;
-        rl_completion_display_matches_hook = display_matches;
+        //rl_readline_name = "luaprompt";
+        //rl_basic_word_break_characters = " \t\n`@$><=;|&{(";
+        //rl_completion_entry_function = generator;
+        //rl_completion_display_matches_hook = display_matches;
 
-        rl_add_defun ("lua-describe-stack", describe_stack, META('s'));
+        //rl_add_defun ("lua-describe-stack", describe_stack, META('s'));
 #endif
 
 #ifdef HAVE_READLINE_HISTORY
         /* Load the command history if there is one. */
 
         if (logfile) {
-            read_history (logfile);
+            linenoiseHistoryLoad(logfile);
         }
 #endif
         if (!chunkname) {
@@ -1605,10 +1573,10 @@ void luap_enter(lua_State *L)
         /* We arrived here through siglongjmp, after receiving a
          * sigint.  Prepare to resume reading a new command. */
 
-        rl_cleanup_after_signal ();
+        /* pmm rl_cleanup_after_signal (); */
 
         print_output ("\n");
-        rl_on_new_line();
+        /* pmm rl_on_new_line(); */
 
         incomplete = 0;
     }
@@ -1627,7 +1595,7 @@ void luap_enter(lua_State *L)
 
         sigaction(SIGINT, &newsigint, NULL);
 
-        if (!(line = readline (incomplete ?
+        if (!(line = linenoise(incomplete ?
                                prompts[colorize][1] : prompts[colorize][0]))) {
             break;
         }
@@ -1637,7 +1605,7 @@ void luap_enter(lua_State *L)
         sigaction(SIGINT, &oldsigint, NULL);
 
         if (*line == '\0') {
-            free(line);
+            linenoiseFree(line);
             continue;
         }
 
@@ -1719,12 +1687,12 @@ void luap_enter(lua_State *L)
         /* Add the line to the history if non-empty. */
 
         if (!incomplete) {
-            add_history (buffer);
+            linenoiseHistoryAdd(buffer);
         }
 #endif
 
-        free (prepended);
-        free (line);
+        free(prepended);
+        linenoiseFree(line);
     }
 
 #ifdef SAVE_RESULTS
