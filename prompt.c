@@ -570,7 +570,7 @@ static char *module_completions (const char *text, int state)
         lua_concat(M, 2);
 
         for (b = d = lua_tostring(M, -2) ; d ; b = d + 1)  {
-            size_t i;
+            size_t is;
 
             d = strstr(b, strings[1]);
             q = strstr(b, strings[2]);
@@ -587,8 +587,8 @@ static char *module_completions (const char *text, int state)
 
             lua_pop(M, 2);
 
-            for (i = 0 ; i < vector.gl_pathc ; i += 1) {
-                char *p = vector.gl_pathv[i];
+            for (is = 0 ; is < vector.gl_pathc ; is += 1) {
+                char *p = vector.gl_pathv[is];
 
                 if (quoted) {
                     lua_pushlstring(M, text, 1);
@@ -602,15 +602,15 @@ static char *module_completions (const char *text, int state)
                 }
 
                 {
-                    const char *s;
+                    const char *ss;
                     size_t l;
 
-                    s = lua_tolstring(M, -1, &l);
+                    ss = lua_tolstring(M, -1, &l);
 
                     /* Suppress submodules named init. */
 
                     if (l < sizeof("init") - 1 ||
-                        strcmp(s + l - sizeof("init") + 1, "init")) {
+                        strcmp(ss + l - sizeof("init") + 1, "init")) {
 
                         if (quoted) {
                             lua_pushlstring(M, text, 1);
@@ -721,7 +721,7 @@ static char *generator (const char *text, int state)
 
     if (which == 4) {
         if (text[0] == '\'' || text[0] == '"') {
-            match = rl_filename_completion_function (text + 1, state);
+            // match = rl_filename_completion_function (text + 1, state);
 
             if (match) {
                 struct stat s;
@@ -744,7 +744,7 @@ static char *generator (const char *text, int state)
                 if (S_ISDIR(s.st_mode)) {
                     match[n + 1] = '/';
 
-                    rl_completion_suppress_append = 1;
+                    //pmm rl_completion_suppress_append = 1;
                 } else {
                     match[n + 1] = text[0];
                 }
@@ -759,7 +759,7 @@ static char *generator (const char *text, int state)
 }
 #endif
 
-static void finish ()
+static void finish(void)
 {
 #ifdef HAVE_READLINE_HISTORY
     /* Save the command history on exit. */
@@ -838,7 +838,7 @@ static int traceback(lua_State *L)
     return 1;
 }
 
-static int execute ()
+static int execute(void)
 {
     int i, h_0, h, status;
 
@@ -956,7 +956,7 @@ static int is_identifier (const char *s, int n)
     return 1;
 }
 
-static void break_line ()
+static void break_line(void)
 {
     int i;
 
@@ -1000,17 +1000,17 @@ static void dump_string (const char *s, int n)
     column += l;
 }
 
-static void describe (lua_State *L, int index)
+static void describe (lua_State *L, int indexi)
 {
     char *s;
     size_t n;
     int type;
 
-    index = absolute (L, index);
-    type = lua_type (L, index);
+    indexi = absolute (L, indexi);
+    type = lua_type (L, indexi);
 
-    if (luaL_getmetafield (L, index, "__tostring")) {
-        lua_pushvalue (L, index);
+    if (luaL_getmetafield (L, indexi, "__tostring")) {
+        lua_pushvalue (L, indexi);
         lua_pcall (L, 1, 1, 0);
         s = (char *)lua_tolstring (L, -1, &n);
         lua_pop (L, 1);
@@ -1019,7 +1019,7 @@ static void describe (lua_State *L, int index)
     } else if (type == LUA_TNUMBER) {
         /* Copy the value to avoid mutating it. */
 
-        lua_pushvalue (L, index);
+        lua_pushvalue (L, indexi);
         s = (char *)lua_tolstring (L, -1, &n);
         lua_pop (L, 1);
 
@@ -1027,7 +1027,8 @@ static void describe (lua_State *L, int index)
     } else if (type == LUA_TSTRING) {
         int i, started, score, level, uselevel = 0;
 
-        s = (char *)lua_tolstring (L, index, &n);
+        level = 0;
+        s = (char *)lua_tolstring (L, indexi, &n);
 
         /* Scan the string to decide how to print it. */
 
@@ -1112,10 +1113,10 @@ static void describe (lua_State *L, int index)
                     dump_character (s[i]);
                 } else {
                     char t[5];
-                    size_t n;
+                    size_t nn;
 
-                    n = sprintf (t, "\\%03u", ((unsigned char *)s)[i]);
-                    dump_string (t, n);
+                    nn = sprintf (t, "\\%03u", ((unsigned char *)s)[i]);
+                    dump_string (t, nn);
                 }
             }
 
@@ -1128,38 +1129,38 @@ static void describe (lua_State *L, int index)
     } else if (type == LUA_TBOOLEAN) {
         n = asprintf (&s, "%s%s%s",
                       COLOR(7),
-                      lua_toboolean (L, index) ? "true" : "false",
+                      lua_toboolean (L, indexi) ? "true" : "false",
                       COLOR(8));
         dump_string (s, n);
         free(s);
     } else if (type == LUA_TFUNCTION) {
         n = asprintf (&s, "<%sfunction:%s %p>",
-                      COLOR(7), COLOR(8), lua_topointer (L, index));
+                      COLOR(7), COLOR(8), lua_topointer (L, indexi));
         dump_string (s, n);
         free(s);
     } else if (type == LUA_TUSERDATA) {
         n = asprintf (&s, "<%suserdata:%s %p>",
-                      COLOR(7), COLOR(8), lua_topointer (L, index));
+                      COLOR(7), COLOR(8), lua_topointer (L, indexi));
 
         dump_string (s, n);
         free(s);
     } else if (type == LUA_TTHREAD) {
         n = asprintf (&s, "<%sthread:%s %p>",
-                      COLOR(7), COLOR(8), lua_topointer (L, index));
+                      COLOR(7), COLOR(8), lua_topointer (L, indexi));
         dump_string (s, n);
         free(s);
     } else if (type == LUA_TTABLE) {
-        int i, l, n, oldindent, multiline, nobreak;
+        int i, l, nn, oldindent, multiline, nobreak;
 
         /* Check if table is too deeply nested. */
 
         if (indent > 8 * linewidth / 10) {
-            char *s;
-            size_t n;
+            char *ss;
+            size_t nnn;
 
-            n = asprintf (&s, "{ %s...%s }", COLOR(7), COLOR(8));
-            dump_string (s, n);
-            free(s);
+            nnn = asprintf (&ss, "{ %s...%s }", COLOR(7), COLOR(8));
+            dump_string (ss, nnn);
+            free(ss);
 
             return;
         }
@@ -1170,20 +1171,20 @@ static void describe (lua_State *L, int index)
         lua_rawgeti (L, LUA_REGISTRYINDEX, ancestors);
         n = lua_rawlen(L, -1);
 
-        for (i = 0 ; i < n ; i += 1) {
+        for (i = 0 ; i < (int) n ; i += 1) {
             lua_rawgeti (L, -1, n - i);
 #if LUA_VERSION_NUM == 501
             if(lua_equal (L, -1, -3)) {
 #else
             if(lua_compare (L, -1, -3, LUA_OPEQ)) {
 #endif
-                char *s;
-                size_t n;
+                char *ss;
+                size_t nnn;
 
-                n = asprintf (&s, "{ %s[%d]...%s }",
-                              COLOR(7), -(i + 1), COLOR(8));
-                dump_string (s, n);
-                free(s);
+                nnn = asprintf (&ss, "{ %s[%d]...%s }",
+                                COLOR(7), -(i + 1), COLOR(8));
+                dump_string (ss, nnn);
+                free(ss);
                 lua_pop (L, 2);
 
                 return;
@@ -1195,7 +1196,7 @@ static void describe (lua_State *L, int index)
         /* Add the table to the ancestor list and pop the ancestor
          * list table. */
 
-        lua_pushvalue (L, index);
+        lua_pushvalue (L, indexi);
         lua_rawseti (L, -2, n + 1);
         lua_pop (L, 1);
 
@@ -1208,13 +1209,13 @@ static void describe (lua_State *L, int index)
         multiline = 0;
         nobreak = 0;
 
-        l = lua_rawlen (L, index);
+        l = lua_rawlen (L, indexi);
 
         /* Traverse the array part first. */
 
         for (i = 0 ; i < l ; i += 1) {
             lua_pushinteger (L, i + 1);
-            lua_gettable (L, index);
+            lua_gettable (L, indexi);
 
             /* Start a fresh line when dumping tables to make sure
              * there's plenty of room. */
@@ -1245,7 +1246,7 @@ static void describe (lua_State *L, int index)
         /* Now for the hash part. */
 
         lua_pushnil (L);
-        while (lua_next (L, index) != 0) {
+        while (lua_next (L, indexi) != 0) {
             if (lua_type (L, -2) != LUA_TNUMBER ||
                 lua_tonumber (L, -2) != lua_tointeger (L, -2) ||
                 lua_tointeger (L, -2) < 1 ||
@@ -1259,14 +1260,14 @@ static void describe (lua_State *L, int index)
                 /* Dump the key and value. */
 
                 if (lua_type (L, -2) == LUA_TSTRING) {
-                    char *s;
-                    size_t n;
+                    char *ss;
+                    size_t nnn;
 
-                    s = (char *)lua_tolstring (L, -2, &n);
+                    ss = (char *)lua_tolstring (L, -2, &nnn);
 
-                    if(is_identifier (s, n)) {
+                    if(is_identifier (ss, nnn)) {
                         dump_string (COLOR(7), strlen(COLOR(7)));
-                        dump_string (s, n);
+                        dump_string (ss, nnn);
                         dump_string (COLOR(8), strlen(COLOR(8)));
                     } else {
                         dump_literal ("[");
@@ -1307,7 +1308,7 @@ static void describe (lua_State *L, int index)
     }
 }
 
-char *luap_describe (lua_State *L, int index)
+char *luap_describe (lua_State *L, int indexi)
 {
     int oldcolorize;
 
@@ -1325,7 +1326,7 @@ char *luap_describe (lua_State *L, int index)
     linewidth = 80;
 #endif
 
-    index = absolute (L, index);
+    indexi = absolute (L, indexi);
     offset = 0;
     indent = 0;
     column = 0;
@@ -1342,7 +1343,7 @@ char *luap_describe (lua_State *L, int index)
     lua_newtable (L);
     ancestors = luaL_ref (L, LUA_REGISTRYINDEX);
 
-    describe (L, index);
+    describe (L, indexi);
 
     luaL_unref (L, LUA_REGISTRYINDEX, ancestors);
     colorize = oldcolorize;
